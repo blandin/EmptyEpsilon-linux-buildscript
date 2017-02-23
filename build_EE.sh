@@ -9,7 +9,7 @@
 #          <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
 #
 # The purpose of this Bash script is to facilitate and expedite the process of
-# building the EmptyEpsilon project on Linux platforms.
+# building EmptyEpsilon on Linux platforms. <https://daid.github.io/EmptyEpsilon/>
 ##
 
 if [ "${1}" = "--help" ]; then
