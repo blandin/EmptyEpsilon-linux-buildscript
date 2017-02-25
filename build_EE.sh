@@ -2,8 +2,8 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version: 1.0
-# Date: 2017-02-23
+# Version: 1.0.1
+# Date: 2017-02-25
 # Author: Ben Landin <github.com/blandin>, <blastyr.net>
 # License: GNU General Public License, Version 2
 #          <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
@@ -12,8 +12,22 @@
 # building EmptyEpsilon on Linux platforms. <https://daid.github.io/EmptyEpsilon/>
 ##
 
+# Configuration (recommended to be left alone)
+BS_BASE_DIR="$(readlink -f "$(dirname "${0}")")"
+BS_NAME="$(basename "${0}")"
+BS_LOG_FILE="${BS_BASE_DIR}/build_EE.$(date +'%Y%m%d_%H%M%S').log"
+
+BS_EE_DIR="${BS_BASE_DIR}/EmptyEpsilon"
+BS_EE_GIT="https://github.com/daid/EmptyEpsilon.git"
+
+BS_SP_DIR="${BS_BASE_DIR}/SeriousProton"
+BS_SP_GIT="https://github.com/daid/SeriousProton.git"
+
+BS_BUILD_DIR="${BS_BASE_DIR}/EmptyEpsilon_build"
+
+
 if [ "${1}" = "--help" ]; then
-	echo "Usage: build_EE.sh [options] [git_release_tag [version_number]]"
+	echo "Usage: ${BS_NAME} [options] [git_release_tag [version_number]]"
 	echo "Options:"
 	echo "  -e | --elevate"
 	echo "      Prompt for sudo password without preliminary prompt"
@@ -34,24 +48,10 @@ if [ "${1}" = "--help" ]; then
 	echo "  --no-compat-check"
 	echo "      Disable distribution compatibility checks"
 	echo "Examples:"
-	echo "  build_EE.sh -f -u -b -n"
-	echo "  build_EE.sh -i EE-2017.01.19"
+	echo "  ${BS_NAME} -f -u -b -n"
+	echo "  ${BS_NAME} -i EE-2017.01.19"
 	exit 0
 fi
-
-
-# Configuration (recommended to be left alone)
-BS_SELF="$(readlink -f ${0})"
-BS_BASE_DIR="$(dirname "${BS_SELF}")"
-BS_LOG_FILE="${BS_BASE_DIR}/build_EE.$(date +'%Y%m%d_%H%M%S').log"
-
-BS_EE_DIR="${BS_BASE_DIR}/EmptyEpsilon"
-BS_EE_GIT="https://github.com/daid/EmptyEpsilon.git"
-
-BS_SP_DIR="${BS_BASE_DIR}/SeriousProton"
-BS_SP_GIT="https://github.com/daid/SeriousProton.git"
-
-BS_BUILD_DIR="${BS_BASE_DIR}/EmptyEpsilon_build"
 
 
 # Functions
