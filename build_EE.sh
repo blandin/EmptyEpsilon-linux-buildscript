@@ -2,8 +2,8 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version: 1.0.1
-# Date: 2017-02-25
+# Version: 1.0.2
+# Date: 2017-08-02
 # Author: Ben Landin <github.com/blandin>, <blastyr.net>
 # License: GNU General Public License, Version 2
 #          <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
@@ -48,7 +48,7 @@ if [ "${1}" = "--help" ]; then
 	echo "  --no-compat-check"
 	echo "      Disable distribution compatibility checks"
 	echo "Examples:"
-	echo "  ${BS_NAME} -f -u -b -n"
+	echo "  ${BS_NAME} -f -u -b"
 	echo "  ${BS_NAME} -i EE-2017.01.19"
 	exit 0
 fi
@@ -124,8 +124,8 @@ if isy "${do_compat_check}" && (which lsb_release > /dev/null || [ -f /etc/lsb-r
 		source /etc/lsb-release
 	fi
 
-	compat_distros=('[Uu]buntu')
-	compat_minvers=('16.04')
+	compat_distros=('[Uu]buntu' '^Peppermint$')
+	compat_minvers=('16.04' '8')
 
 	compat="n"
 	for (( i=0; i<${#compat_distros[@]}; i++ )); do
