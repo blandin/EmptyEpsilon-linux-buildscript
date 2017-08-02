@@ -204,7 +204,7 @@ for proj in EE SP; do
 		if [ -d "${!bs_dirvar}" ]; then
 			rm -r "${!bs_dirvar}" 2>&1 || fatal "Unable to remove ${!bs_dirvar} before cloning ${proj} repository"
 		fi
-		git clone "${!bs_gitvar}" "${!bs_dirvar}" 2>&1 || fatal "Unable to clone ${proj} repository at ${!bs_dirvar}"
+		git clone "${!bs_gitvar}" "${!bs_dirvar}" || fatal "Unable to clone ${proj} repository at ${!bs_dirvar}"
 	else
 		echo "${proj} already cloned. Cleaning up..."
 		cd "${!bs_dirvar}"
