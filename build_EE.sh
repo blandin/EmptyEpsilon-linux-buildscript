@@ -2,8 +2,8 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version: 1.0.2
-# Date: 2017-08-02
+# Version: 1.0.3
+# Date: 2017-09-16
 # Author: Ben Landin <github.com/blandin>, <blastyr.net>
 # License: GNU General Public License, Version 2
 #          <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
@@ -24,6 +24,8 @@ BS_SP_DIR="${BS_BASE_DIR}/SeriousProton"
 BS_SP_GIT="https://github.com/daid/SeriousProton.git"
 
 BS_BUILD_DIR="${BS_BASE_DIR}/EmptyEpsilon_build"
+
+BS_TARGET="master"
 
 
 if [ "${1}" = "--help" ]; then
@@ -47,9 +49,12 @@ if [ "${1}" = "--help" ]; then
 	echo "      Do not install after building"
 	echo "  --no-compat-check"
 	echo "      Disable distribution compatibility checks"
+	echo "git_release_tag:"
+	echo "  If you supply the keyword 'latest' for this parameter, the newest release tag will be used"
 	echo "Examples:"
 	echo "  ${BS_NAME} -f -u -b"
 	echo "  ${BS_NAME} -i EE-2017.01.19"
+	echo "  ${BS_NAME} latest"
 	exit 0
 fi
 
@@ -216,17 +221,25 @@ for proj in EE SP; do
 			git pull origin master 2>&1 || fatal "Unable to refresh the master branch in ${proj} repository"
 		fi
 	fi
-
-	# Checkout a specific tag for building, if supplied
-	if [ -n "${1}" ]; then
-		BS_TARGET="${1}"
-		cd "${!bs_dirvar}"
-		echo "Checking out target: ${1}"
-		git checkout ${1} &> /dev/null || fatal "Unable to checkout ${1} in ${proj} repository"
-	else
-		BS_TARGET="master"
-	fi
 done
+
+
+# Checkout a specific tag for building, if supplied
+if [ -n "${1}" ]; then
+	sepln
+	if [ "${1}" = "latest" ]; then
+		cd "${BS_EE_DIR}"
+		BS_TARGET="$(git tag | sort | tail -n 1)"
+	else
+		BS_TARGET="${1}"
+	fi
+	for proj in EE SP; do
+		echo "Checking out ${BS_TARGET} in ${proj} repository..."
+		bs_dirvar="BS_${proj}_DIR"
+		cd "${!bs_dirvar}"
+		git checkout "${BS_TARGET}" &> /dev/null || fatal "Unable to checkout ${BS_TARGET} in ${proj} repository"
+	done
+fi
 
 
 # Clean the build directory
@@ -248,6 +261,8 @@ cmake "${BS_EE_DIR}" -DSERIOUS_PROTON_DIR="${BS_SP_DIR}/" 2>&1 || fatal "Build c
 # Reconfigure version number, if supplied
 if [ -n "${2}" ]; then
 	BS_VERSION="${2}"
+elif [[ "${BS_TARGET}" =~ ^EE-[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+	BS_VERSION="$(echo "${BS_TARGET}" | sed -r 's/^EE-([0-9]{4})\.([0-9]{2})\.([0-9]{2})$/\1\2\3/')"
 elif [[ "${1}" =~ ^EE-[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
 	BS_VERSION="$(echo "${1}" | sed -r 's/^EE-([0-9]{4})\.([0-9]{2})\.([0-9]{2})$/\1\2\3/')"
 fi
