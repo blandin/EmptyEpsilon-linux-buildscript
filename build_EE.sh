@@ -101,7 +101,7 @@ function isn { [[ "${1}" =~ ^[Nn]$ ]]; }
 
 # Recurse once to pass CLI options configured in header, if necessary
 recurse_cli_flag="--default-cli-recurse"
-if [ "${1}" = "${recurse_cli_flag}" ]; then shift; elif [ -n "${BS_CLI_PARAMS}" ]
+if [ "${1}" = "${recurse_cli_flag}" ]; then shift; elif [ -n "${BS_CLI_PARAMS}" ]; then
 	${0} ${recurse_cli_flag} ${BS_CLI_PARAMS} "$@"
 	exit $?
 fi
