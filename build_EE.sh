@@ -2,20 +2,23 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version: 1.0.3
-# Date: 2017-09-16
-# Author: Ben Landin <github.com/blandin>, <blastyr.net>
-# License: GNU General Public License, Version 2
-#          <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
+# Version:      1.0.4
+# Release date: 2018-11-24
+# Author:       Ben Landin <https://github.com/blandin>, <http://blastyr.net>
+# License:      GNU General Public License, Version 2
+#               <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
 #
 # The purpose of this Bash script is to facilitate and expedite the process of
 # building EmptyEpsilon on Linux platforms. <https://daid.github.io/EmptyEpsilon/>
 ##
 
+
 # Configuration (recommended to be left alone)
 BS_BASE_DIR="$(readlink -f "$(dirname "${0}")")"
 BS_NAME="$(basename "${0}")"
 BS_LOG_FILE="${BS_BASE_DIR}/build_EE.$(date +'%Y%m%d_%H%M%S').log"
+
+BS_APT_OPTIONS=""
 
 BS_EE_DIR="${BS_BASE_DIR}/EmptyEpsilon"
 BS_EE_GIT="https://github.com/daid/EmptyEpsilon.git"
@@ -27,8 +30,18 @@ BS_BUILD_DIR="${BS_BASE_DIR}/EmptyEpsilon_build"
 
 BS_TARGET="master"
 
+BS_CLI_PARAMS=""
 
-if [ "${1}" = "--help" ]; then
+
+# Need to quickly iterate the command line options to look for --help so we can output before logging happens
+help_cli_option="no"
+for o in "$@"; do if [ "${o}" = "--help" ]; then help_cli_option=""; fi; done
+
+
+# Command line help
+if [ -z "${help_cli_option}" ]; then
+	head -n 12 "${0}" | tail -n 9
+	echo
 	echo "Usage: ${BS_NAME} [options] [git_release_tag [version_number]]"
 	echo "Options:"
 	echo "  -e | --elevate"
@@ -47,19 +60,21 @@ if [ "${1}" = "--help" ]; then
 	echo "      Install without prompting after building; implies --build and --elevate"
 	echo "  -I | --no-install"
 	echo "      Do not install after building"
+	echo "  -y | --apt-yes"
+	echo "      Automatically approve package updates/installation when verifying the build environment"
 	echo "  --no-compat-check"
 	echo "      Disable distribution compatibility checks"
 	echo "git_release_tag:"
 	echo "  If you supply the keyword 'latest' for this parameter, the newest release tag will be used"
 	echo "Examples:"
-	echo "  ${BS_NAME} -f -u -b"
-	echo "  ${BS_NAME} -i EE-2017.01.19"
+	echo "  ${BS_NAME} -yufi"
+	echo "  ${BS_NAME} --install EE-2017.01.19"
 	echo "  ${BS_NAME} latest"
 	exit 0
 fi
 
 
-# Functions
+# Script helper functions
 function mecho {
 	local pre=""
 	local ec=""
@@ -84,11 +99,19 @@ function isy { [[ "${1}" =~ ^[Yy]$ ]]; }
 function isn { [[ "${1}" =~ ^[Nn]$ ]]; }
 
 
+# Recurse once to pass CLI options configured in header, if necessary
+recurse_cli_flag="--default-cli-recurse"
+if [ "${1}" = "${recurse_cli_flag}" ]; then shift; elif [ -n "${BS_CLI_PARAMS}" ]
+	${0} ${recurse_cli_flag} ${BS_CLI_PARAMS} "$@"
+	exit $?
+fi
+
+
 # Recurse once to capture output for logging
-log_flag="--logging-recurse"
-if [ "${1}" = "${log_flag}" ]; then shift; else
+recurse_log_flag="--logging-recurse"
+if [ "${1}" = "${recurse_log_flag}" ]; then shift; else
 	if touch "${BS_LOG_FILE}"; then
-		$0 ${log_flag} "$@" | tee "${BS_LOG_FILE}"
+		${0} ${recurse_log_flag} "$@" | tee "${BS_LOG_FILE}"
 		ec=${PIPESTATUS[0]}
 		mecho -i "Log file written to: ${BS_LOG_FILE}"
 		exit ${ec}
@@ -98,15 +121,34 @@ if [ "${1}" = "${log_flag}" ]; then shift; else
 fi
 
 
-# Set default behavior and parse behavior flags
+# Set behavior flag defaults
+cli_options=()
 do_compat_check="y"
 do_env_update="n"
 do_git_pull="n"
 do_elevate=""
 do_build=""
 do_install=""
+
+
+# Parse command line flags
 while [[ ${1} == -* ]]; do
-	case "${1}" in
+	if [[ ${1} == --* ]]; then
+		cli_options+=("${1}")
+	else
+		while read -n 1 flag; do
+			if [ -n "${flag}" ]; then
+				cli_options+=("-${flag}")
+			fi
+		done <<< "${1:1}"
+	fi
+	shift
+done
+
+
+# Process command line options
+for opt in "${cli_options[@]}"; do
+	case "${opt}" in
 		"-e"|"--elevate")				do_elevate="y";;
 		"-E"|"--no-elevate")			do_elevate="n";;
 		"-f"|"--full-build-env-update")	do_elevate="y"; do_env_update="y";;
@@ -115,10 +157,12 @@ while [[ ${1} == -* ]]; do
 		"-B"|"--no-build")				do_build="n";;
 		"-i"|"--install")				do_elevate="y"; do_build="y"; do_install="y";;
 		"-I"|"--no-install")			do_install="n";;
+		"-y"|"--apt-yes")				BS_APT_OPTIONS+=" -y";;
 		"--no-compat-check")			do_compat_check="n";;
+		*)								error "Ignoring unknown command line option: ${1}";;
 	esac
-	shift
 done
+
 
 # Check distro and version
 if isy "${do_compat_check}" && (which lsb_release > /dev/null || [ -f /etc/lsb-release ]); then
@@ -183,7 +227,7 @@ sepln
 echo "Checking build environment..."
 pkglist="git build-essential libx11-dev cmake libxrandr-dev mesa-common-dev libglu1-mesa-dev libudev-dev libglew-dev libjpeg-dev libfreetype6-dev libopenal-dev libsndfile1-dev libxcb1-dev libxcb-image0-dev libsfml-dev"
 if isy "${do_env_update}"; then
-	${sudo} apt-get update 2>&1 && ${sudo} apt-get install ${pkglist} 2>&1 || fatal "Unable to install or update build environment"
+	${sudo} apt-get update 2>&1 && ${sudo} apt-get ${BS_APT_OPTIONS} install ${pkglist} 2>&1 || fatal "Unable to install or update build environment"
 else
 	instlist=()
 	for pkg in ${pkglist}; do
@@ -192,7 +236,7 @@ else
 	done
 	if [ ${#instlist[@]} -gt 0 ]; then
 		error "Build environment missing packages: ${instlist[@]}" "Will install"
-		${sudo} apt-get install ${instlist[@]} 2> /dev/null || fatal "Unable to install build environment"
+		${sudo} apt-get ${BS_APT_OPTIONS} install ${instlist[@]} 2> /dev/null || fatal "Unable to install build environment"
 	fi
 fi
 echo "Build environment verified"
@@ -272,13 +316,14 @@ fi
 
 # Prompt for user confirmation
 sepln
-echo "EmptyEpsilon:"
-echo "    Source directory: ${BS_EE_DIR}"
-echo "    Target branch/tag: ${BS_TARGET}"
-echo "    Version number: ${BS_VERSION}"
-echo "SeriousProton:"
-echo "    Source directory: ${BS_SP_DIR}"
-echo "    Target branch/tag: ${BS_TARGET}"
+echo "Build parameters:"
+echo "    EmptyEpsilon:"
+echo "        Source directory: ${BS_EE_DIR}"
+echo "        Target branch/tag: ${BS_TARGET}"
+echo "        Version number: ${BS_VERSION}"
+echo "    SeriousProton:"
+echo "        Source directory: ${BS_SP_DIR}"
+echo "        Target branch/tag: ${BS_TARGET}"
 echo
 yn="${do_build}"
 while ! isyn "${yn}"; do
