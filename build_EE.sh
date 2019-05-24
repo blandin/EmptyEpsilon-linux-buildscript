@@ -2,8 +2,8 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version:      1.0.4
-# Release date: 2018-11-24
+# Version:      1.0.5
+# Release date: 2019-05-24
 # Author:       Ben Landin <https://github.com/blandin>, <http://blastyr.net>
 # License:      GNU General Public License, Version 2
 #               <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
