@@ -173,8 +173,8 @@ if isy "${do_compat_check}" && (which lsb_release > /dev/null || [ -f /etc/lsb-r
 		source /etc/lsb-release
 	fi
 
-	compat_distros=('[Uu]buntu' '^Peppermint$')
-	compat_minvers=('16.04' '8')
+	compat_distros=('[Uu]buntu' '^Peppermint$' 'Debian')
+	compat_minvers=('16.04' '8' '9.7')
 
 	compat="n"
 	for (( i=0; i<${#compat_distros[@]}; i++ )); do
