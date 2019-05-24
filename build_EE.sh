@@ -2,7 +2,7 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version:      1.0.5
+# Version:      1.0.6
 # Release date: 2019-05-24
 # Author:       Ben Landin <https://github.com/blandin>, <http://blastyr.net>
 # License:      GNU General Public License, Version 2
@@ -225,7 +225,7 @@ fi
 # Verify build environment is complete
 sepln
 echo "Checking build environment..."
-pkglist="git build-essential libx11-dev cmake libxrandr-dev mesa-common-dev libglu1-mesa-dev libudev-dev libglew-dev libjpeg-dev libfreetype6-dev libopenal-dev libsndfile1-dev libxcb1-dev libxcb-image0-dev libsfml-dev"
+pkglist="git build-essential libx11-dev cmake libxrandr-dev mesa-common-dev libglu1-mesa-dev libudev-dev libglew-dev libjpeg-dev libfreetype6-dev libopenal-dev libsndfile1-dev libxcb1-dev libxcb-image0-dev cmake gcc g++ libsfml-dev"
 if isy "${do_env_update}"; then
 	${sudo} apt-get update 2>&1 && ${sudo} apt-get ${BS_APT_OPTIONS} install ${pkglist} 2>&1 || fatal "Unable to install or update build environment"
 else
@@ -293,14 +293,8 @@ if [ -d "${BS_BUILD_DIR}" ]; then
 fi
 mkdir -p "${BS_BUILD_DIR}" 2>&1 || fatal "Unable to create build directory at ${BS_BUILD_DIR}"
 
-# Might need this
-BS_VERSION_ORIG="$(date +'%Y%m%d')"
-BS_VERSION="${BS_VERSION_ORIG}"
-
-# Move into directory and configure build
-echo "Preparing to build..."
-cd "${BS_BUILD_DIR}"
-cmake "${BS_EE_DIR}" -DSERIOUS_PROTON_DIR="${BS_SP_DIR}/" 2>&1 || fatal "Build configuration failed"
+# Need a version number for today's build
+BS_VERSION="$(date +'%Y%m%d')"
 
 # Reconfigure version number, if supplied
 if [ -n "${2}" ]; then
@@ -310,9 +304,11 @@ elif [[ "${BS_TARGET}" =~ ^EE-[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
 elif [[ "${1}" =~ ^EE-[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
 	BS_VERSION="$(echo "${1}" | sed -r 's/^EE-([0-9]{4})\.([0-9]{2})\.([0-9]{2})$/\1\2\3/')"
 fi
-if [ "${BS_VERSION}" != "${BS_VERSION_ORIG}" ]; then
-	"grep" -l -r "${BS_VERSION_ORIG}" ./* | while read file; do "sed" -i -r "s/${BS_VERSION_ORIG}/${BS_VERSION}/g" "${file}"; done
-fi
+
+# Move into directory and configure build
+echo "Preparing to build..."
+cd "${BS_BUILD_DIR}"
+cmake "${BS_EE_DIR}" -DSERIOUS_PROTON_DIR="${BS_SP_DIR}/" -DCPACK_PACKAGE_VERSION_MAJOR=${BS_VERSION:0:4} -DCPACK_PACKAGE_VERSION_MINOR=${BS_VERSION:4:2} -DCPACK_PACKAGE_VERSION_PATCH=${BS_VERSION:6:2} 2>&1 || fatal "Build configuration failed"
 
 # Prompt for user confirmation
 sepln
