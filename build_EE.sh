@@ -188,7 +188,7 @@ if isy "${do_compat_check}" && (which lsb_release > /dev/null || [ -f /etc/lsb-r
 elif isn "${do_compat_check}"; then
 	error "Compatibility check disabled. This script may not work as intended on your system."
 else
-	error "Unable to determine distribution compatibility! This script may not work as intended on your system."
+	fatal "Unable to determine distribution compatibility! This script may not work as intended on your system."
 fi
 
 
