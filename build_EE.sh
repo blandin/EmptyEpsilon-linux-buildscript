@@ -354,20 +354,20 @@ fi
 
 # Prompt for user confirmation
 sepln
-echo "Build parameters:" >&2
+echo "Build parameters:"
 if isy "${do_build_sfml}"; then
-echo "    SFML:" >&2
-echo "        Source directory: ${BS_SFML_DIR}" >&2
-echo "        Target branch/tag: ${BS_SFML_TARGET}" >&2
+echo "    SFML:"
+echo "        Source directory: ${BS_SFML_DIR}"
+echo "        Target branch/tag: ${BS_SFML_TARGET}"
 fi
-echo "    EmptyEpsilon:" >&2
-echo "        Source directory: ${BS_EE_DIR}" >&2
-echo "        Target branch/tag: ${BS_TARGET}" >&2
-echo "        Version number: ${BS_VERSION}" >&2
-echo "    SeriousProton:" >&2
-echo "        Source directory: ${BS_SP_DIR}" >&2
-echo "        Target branch/tag: ${BS_TARGET}" >&2
-echo >&2
+echo "    EmptyEpsilon:"
+echo "        Source directory: ${BS_EE_DIR}"
+echo "        Target branch/tag: ${BS_TARGET}"
+echo "        Version number: ${BS_VERSION}"
+echo "    SeriousProton:"
+echo "        Source directory: ${BS_SP_DIR}"
+echo "        Target branch/tag: ${BS_TARGET}"
+echo
 yn="${do_build}"
 while ! isyn "${yn}"; do
 	read -p "Proceed with build? (Y/n) " yn
@@ -397,9 +397,9 @@ if isy "${do_build_sfml}"; then
 	cd "${BS_SFML_BUILD_DIR}"
 	cmake "${BS_SFML_DIR}" 2>&1 || fatal "SFML build configuration failed"
 	sepln
-	make || fatal "SFML build failed"
-	${sudo} make install || fatal "SFML installation failed"
-	${sudo} ldconfig || fatal "SFML library linkage failed"
+	make 2>&1 || fatal "SFML build failed"
+	${sudo} make install 2>&1 || fatal "SFML installation failed"
+	${sudo} ldconfig 2>&1 || fatal "SFML library linkage failed"
 fi
 
 
@@ -413,7 +413,7 @@ cmake "${BS_EE_DIR}" \
 	-DCPACK_PACKAGE_VERSION_MINOR=${BS_VERSION:4:2} \
 	-DCPACK_PACKAGE_VERSION_PATCH=${BS_VERSION:6:2} 2>&1 || fatal "Build configuration failed"
 sepln
-make || fatal "Build failed"
+make 2>&1 || fatal "Build failed"
 echo "Build successful"
 
 
