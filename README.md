@@ -5,5 +5,5 @@ The purpose of this Bash script is to facilitate and expedite the process of bui
 - Only verified working on certain distributions
   - Ubuntu 16.04 and higher
   - Peppermint 8 and higher
-  - Debian 9.7 and higher
-  - Compatibility can be added for other distributions in the future if there is interest
+  - Debian 9 and higher
+  - The compatibility check can be bypassed, but currently the script is hard coded to make use of the dpkg package management system.

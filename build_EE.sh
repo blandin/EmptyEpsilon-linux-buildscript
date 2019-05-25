@@ -2,8 +2,8 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version:      1.0.6
-# Release date: 2019-05-24
+# Version:      1.1.0
+# Release date: 2019-05-25
 # Author:       Ben Landin <https://github.com/blandin>, <http://blastyr.net>
 # License:      GNU General Public License, Version 2
 #               <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
@@ -26,7 +26,17 @@ BS_EE_GIT="https://github.com/daid/EmptyEpsilon.git"
 BS_SP_DIR="${BS_BASE_DIR}/SeriousProton"
 BS_SP_GIT="https://github.com/daid/SeriousProton.git"
 
-BS_BUILD_DIR="${BS_BASE_DIR}/EmptyEpsilon_build"
+BS_SFML_DIR="${BS_BASE_DIR}/SFML"
+BS_SFML_GIT="https://github.com/SFML/SFML.git"
+BS_SFML_TARGET="2.4.2"
+
+BS_EE_BUILD_DIR="${BS_BASE_DIR}/EmptyEpsilon_build"
+BS_SFML_BUILD_DIR="${BS_BASE_DIR}/SFML_build"
+
+BS_EE_PKGLIST="git build-essential libx11-dev libxrandr-dev mesa-common-dev libglu1-mesa-dev libudev-dev libglew-dev libjpeg-dev libfreetype6-dev libopenal-dev libsndfile1-dev libxcb1-dev libxcb-image0-dev cmake gcc g++"
+BS_EE_PKG_SFML="libsfml-dev"
+
+BS_SFML_PKGLIST="libgl1-mesa-dev libflac-dev libogg-dev libvorbis-dev"
 
 BS_TARGET="master"
 
@@ -48,6 +58,12 @@ if [ -z "${help_cli_option}" ]; then
 	echo "      Prompt for sudo password without preliminary prompt"
 	echo "  -E | --no-elevate"
 	echo "      Do not elevate; disables build environment updating and installing"
+	echo "  -s | --build-sfml"
+	echo "      Build and install the SFML library from source; implies --elevate"
+	echo "  --sfml-version=x.x.x"
+	echo "      Build and install a specific version of SFML from source; implies --build-sfml"
+	echo "  -S | --no-build-sfml"
+	echo "      Use the SFML library (${BS_EE_PKG_SFML}) from your distribution repository"
 	echo "  -f | --full-build-env-update"
 	echo "      Forces a full update of the build environment; implies --elevate"
 	echo "  -u | --update-source"
@@ -69,6 +85,7 @@ if [ -z "${help_cli_option}" ]; then
 	echo "Examples:"
 	echo "  ${BS_NAME} -yufi"
 	echo "  ${BS_NAME} --install EE-2017.01.19"
+	echo "  ${BS_NAME} --sfml-version=2.5.1 EE-2019.05.21"
 	echo "  ${BS_NAME} latest"
 	exit 0
 fi
@@ -124,6 +141,7 @@ fi
 # Set behavior flag defaults
 cli_options=()
 do_compat_check="y"
+do_build_sfml=""
 do_env_update="n"
 do_git_pull="n"
 do_elevate=""
@@ -151,6 +169,9 @@ for opt in "${cli_options[@]}"; do
 	case "${opt}" in
 		"-e"|"--elevate")				do_elevate="y";;
 		"-E"|"--no-elevate")			do_elevate="n";;
+		"-s"|"--build-sfml")			do_elevate="y"; do_build_sfml="y";;
+		"--sfml-version="*)				do_elevate="y"; do_build_sfml="y"; BS_SFML_TARGET="${opt:15}";;
+		"-S"|"--no-build-sfml")			do_build_sfml="n";;
 		"-f"|"--full-build-env-update")	do_elevate="y"; do_env_update="y";;
 		"-u"|"--update-source")			do_git_pull="y";;
 		"-b"|"--build")					do_build="y";;
@@ -174,13 +195,14 @@ if isy "${do_compat_check}" && (which lsb_release > /dev/null || [ -f /etc/lsb-r
 	fi
 
 	compat_distros=('[Uu]buntu' '^Peppermint$' 'Debian')
-	compat_minvers=('16.04' '8' '9.7')
+	compat_minvers=('16.04' '8' '9')
 
 	compat="n"
 	for (( i=0; i<${#compat_distros[@]}; i++ )); do
 		if isn "${compat}" &&
 		echo "${DISTRIB_ID}" | "grep" -P "${compat_distros[${i}]}" > /dev/null &&
-		(( $(echo "${DISTRIB_RELEASE}"'>='"${compat_minvers[${i}]}" | bc -l) )); then
+		(( $(echo "${DISTRIB_RELEASE}"'>='"${compat_minvers[${i}]}" | bc -l) )) &&
+		which apt-get > /dev/null && which dpkg > /dev/null; then
 			compat="y"
 		fi
 	done
@@ -198,13 +220,14 @@ sudo="sudono"
 if [ "${me}" = "root" ]; then
 	sudo=""
 else
-	if [ -z "${do_elevate}" ]; then
+	yn="${do_elevate}"
+	if ! isyn "${yn}"; then
 		echo "You may continue without elevating, however the following will be unavailable:" >&2
 		echo "  - Installing/updating the build environment (if necessary)" >&2
+		echo "  - Building and installing SFML from source" >&2
 		echo "  - Installing the build, once complete" >&2
 		echo >&2
 	fi
-	yn="${do_elevate}"
 	while ! isyn "${yn}"; do
 		read -p "Would you like to enable elevated functionality? (y/N) " yn
 		if [ -z "${yn}" ]; then yn="n"; fi
@@ -222,15 +245,37 @@ else
 fi
 
 
+# Resolve SFML dependency
+sepln
+yn="${do_build_sfml}"
+if ! isyn "${yn}"; then
+	echo "EmptyEpsilon depends on a library called SFML. On many distributions, this library is present in the repository." >&2
+	echo "However, in some cases the version in the repository is too old, and will cause build errors." >&2
+	echo "This script can obtain the SFML source code and build it automatically, instead." >&2
+	echo >&2
+fi
+while ! isyn "${yn}"; do
+	read -p "Download and build SFML library from source? (y/N) " yn
+	if [ -z "${yn}" ]; then yn="n"; fi
+done
+if isn "${yn}"; then
+	mecho -i "Adding ${BS_EE_PKG_SFML} package to build environment dependencies"
+	BS_EE_PKGLIST+=" ${BS_EE_PKG_SFML}"
+else
+	mecho -i "Adding the following packages to build environment dependencies:" "  ${BS_SFML_PKGLIST}"
+	BS_EE_PKGLIST+=" ${BS_SFML_PKGLIST}"
+fi
+do_build_sfml="${yn}"
+
+
 # Verify build environment is complete
 sepln
 echo "Checking build environment..."
-pkglist="git build-essential libx11-dev cmake libxrandr-dev mesa-common-dev libglu1-mesa-dev libudev-dev libglew-dev libjpeg-dev libfreetype6-dev libopenal-dev libsndfile1-dev libxcb1-dev libxcb-image0-dev cmake gcc g++ libsfml-dev"
 if isy "${do_env_update}"; then
-	${sudo} apt-get update 2>&1 && ${sudo} apt-get ${BS_APT_OPTIONS} install ${pkglist} 2>&1 || fatal "Unable to install or update build environment"
+	${sudo} apt-get update 2>&1 && ${sudo} apt-get ${BS_APT_OPTIONS} install ${BS_EE_PKGLIST} 2>&1 || fatal "Unable to install or update build environment"
 else
 	instlist=()
-	for pkg in ${pkglist}; do
+	for pkg in ${BS_EE_PKGLIST}; do
 		ret="$(dpkg -l ${pkg} 2> /dev/null)"
 		if [ $? -ne 0 ]; then instlist+=("${pkg}"); fi
 	done
@@ -243,7 +288,9 @@ echo "Build environment verified"
 
 
 # Verify projects are cloned and clean
-for proj in EE SP; do
+projects="EE SP"
+if isy "${do_build_sfml}"; then projects+=" SFML"; fi
+for proj in ${projects}; do
 	sepln
 	cd "${BS_BASE_DIR}"
 	bs_dirvar="BS_${proj}_DIR"
@@ -273,7 +320,7 @@ if [ -n "${1}" ]; then
 	sepln
 	if [ "${1}" = "latest" ]; then
 		cd "${BS_EE_DIR}"
-		BS_TARGET="$(git tag | sort | tail -n 1)"
+		BS_TARGET="$(git tag | "grep" -P '^EE-[0-9]{4}\.[0-9]{2}\.[0-9]{2}$' | sort | tail -n 1)"
 	else
 		BS_TARGET="${1}"
 	fi
@@ -287,11 +334,10 @@ fi
 
 
 # Clean the build directory
-sepln
-if [ -d "${BS_BUILD_DIR}" ]; then
-	rm -rf "${BS_BUILD_DIR}" 2>&1 || fatal "Unable to remove old build directory at ${BS_BUILD_DIR}"
+if [ -d "${BS_EE_BUILD_DIR}" ]; then
+	rm -rf "${BS_EE_BUILD_DIR}" 2>&1 || fatal "Unable to remove old build directory at ${BS_EE_BUILD_DIR}"
 fi
-mkdir -p "${BS_BUILD_DIR}" 2>&1 || fatal "Unable to create build directory at ${BS_BUILD_DIR}"
+mkdir -p "${BS_EE_BUILD_DIR}" 2>&1 || fatal "Unable to create build directory at ${BS_EE_BUILD_DIR}"
 
 # Need a version number for today's build
 BS_VERSION="$(date +'%Y%m%d')"
@@ -305,31 +351,67 @@ elif [[ "${1}" =~ ^EE-[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
 	BS_VERSION="$(echo "${1}" | sed -r 's/^EE-([0-9]{4})\.([0-9]{2})\.([0-9]{2})$/\1\2\3/')"
 fi
 
-# Move into directory and configure build
-echo "Preparing to build..."
-cd "${BS_BUILD_DIR}"
-cmake "${BS_EE_DIR}" -DSERIOUS_PROTON_DIR="${BS_SP_DIR}/" -DCPACK_PACKAGE_VERSION_MAJOR=${BS_VERSION:0:4} -DCPACK_PACKAGE_VERSION_MINOR=${BS_VERSION:4:2} -DCPACK_PACKAGE_VERSION_PATCH=${BS_VERSION:6:2} 2>&1 || fatal "Build configuration failed"
 
 # Prompt for user confirmation
 sepln
-echo "Build parameters:"
-echo "    EmptyEpsilon:"
-echo "        Source directory: ${BS_EE_DIR}"
-echo "        Target branch/tag: ${BS_TARGET}"
-echo "        Version number: ${BS_VERSION}"
-echo "    SeriousProton:"
-echo "        Source directory: ${BS_SP_DIR}"
-echo "        Target branch/tag: ${BS_TARGET}"
-echo
+echo "Build parameters:" >&2
+if isy "${do_build_sfml}"; then
+echo "    SFML:" >&2
+echo "        Source directory: ${BS_SFML_DIR}" >&2
+echo "        Target branch/tag: ${BS_SFML_TARGET}" >&2
+fi
+echo "    EmptyEpsilon:" >&2
+echo "        Source directory: ${BS_EE_DIR}" >&2
+echo "        Target branch/tag: ${BS_TARGET}" >&2
+echo "        Version number: ${BS_VERSION}" >&2
+echo "    SeriousProton:" >&2
+echo "        Source directory: ${BS_SP_DIR}" >&2
+echo "        Target branch/tag: ${BS_TARGET}" >&2
+echo >&2
 yn="${do_build}"
 while ! isyn "${yn}"; do
 	read -p "Proceed with build? (Y/n) " yn
 	if [ -z "${yn}" ]; then yn="y"; fi
 done
 isn "${do_build}" && mecho -i -x 0 "Would build"
-! isy "${yn}" && fatal "Build cancelled"
+! isy "${yn}" && mecho -i -x 50 "Build cancelled"
+
+
+# Build SFML from source
+if isy "${do_build_sfml}"; then
+	# Checkout latest release
+	sepln
+	cd "${BS_SFML_DIR}"
+	echo "Checking out release ${BS_SFML_TARGET} of SFML..."
+	git checkout "${BS_SFML_TARGET}" &> /dev/null || fatal "Unable to checkout ${BS_SFML_TARGET} in SFML repository"
+
+	# Clean the build directory
+	sepln
+	if [ -d "${BS_SFML_BUILD_DIR}" ]; then
+		rm -rf "${BS_SFML_BUILD_DIR}" 2>&1 || fatal "Unable to remove old build directory at ${BS_SFML_BUILD_DIR}"
+	fi
+	mkdir -p "${BS_SFML_BUILD_DIR}" 2>&1 || fatal "Unable to create build directory at ${BS_SFML_BUILD_DIR}"
+
+	# Move into directory, configure, build
+	echo "Preparing to build SFML..."
+	cd "${BS_SFML_BUILD_DIR}"
+	cmake "${BS_SFML_DIR}" 2>&1 || fatal "SFML build configuration failed"
+	sepln
+	make || fatal "SFML build failed"
+	${sudo} make install || fatal "SFML installation failed"
+	${sudo} ldconfig || fatal "SFML library linkage failed"
+fi
+
 
 # Here we go
+sepln
+echo "Preparing to build EE..."
+cd "${BS_EE_BUILD_DIR}"
+cmake "${BS_EE_DIR}" \
+	-DSERIOUS_PROTON_DIR="${BS_SP_DIR}/" \
+	-DCPACK_PACKAGE_VERSION_MAJOR=${BS_VERSION:0:4} \
+	-DCPACK_PACKAGE_VERSION_MINOR=${BS_VERSION:4:2} \
+	-DCPACK_PACKAGE_VERSION_PATCH=${BS_VERSION:6:2} 2>&1 || fatal "Build configuration failed"
 sepln
 make || fatal "Build failed"
 echo "Build successful"
@@ -342,8 +424,8 @@ while ! isyn "${yn}"; do
 	read -p "Install? (y/N) " yn
 	if [ -z "${yn}" ]; then yn="n"; fi
 done
-! isy "${yn}" && mecho -x 0 "You can install manually later:" "  cd \"${BS_BUILD_DIR}\" && sudo make install" >&2
+! isy "${yn}" && mecho -x 0 "You can install manually later:" "  cd \"${BS_EE_BUILD_DIR}\" && sudo make install" >&2
 
 # Install
-${sudo} make install 2>&1 || fatal "Installation failed" "You can install manually later:" "  cd \"${BS_BUILD_DIR}\" && sudo make install"
+${sudo} make install 2>&1 || fatal "Installation failed" "You can install manually later:" "  cd \"${BS_EE_BUILD_DIR}\" && sudo make install"
 echo "Installation complete"
