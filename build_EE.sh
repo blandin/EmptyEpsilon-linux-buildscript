@@ -2,9 +2,9 @@
 
 ##
 # EmptyEpsilon Linux build script
-# Version:      1.1.0
-# Release date: 2019-05-25
-# Author:       Ben Landin <https://github.com/blandin>, <http://blastyr.net>
+# Version:      1.1.1
+# Release date: 2020-02-11
+# Author:       Ben Landin <https://github.com/blandin>, <http://benlandin.net>
 # License:      GNU General Public License, Version 2
 #               <https://github.com/blandin/EmptyEpsilon-linux-buildscript/blob/master/LICENSE>
 #
@@ -201,7 +201,7 @@ if isy "${do_compat_check}" && (which lsb_release > /dev/null || [ -f /etc/lsb-r
 	for (( i=0; i<${#compat_distros[@]}; i++ )); do
 		if isn "${compat}" &&
 		echo "${DISTRIB_ID}" | "grep" -P "${compat_distros[${i}]}" > /dev/null &&
-		(( $(echo "${DISTRIB_RELEASE}"'>='"${compat_minvers[${i}]}" | bc -l) )) &&
+		(( $(echo "${DISTRIB_RELEASE} ${compat_minvers[${i}]}" | awk '{print ($1 >= $2)}') )) &&
 		which apt-get > /dev/null && which dpkg > /dev/null; then
 			compat="y"
 		fi
